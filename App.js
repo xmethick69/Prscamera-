@@ -1,108 +1,141 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Slider } from 'react-native';
-import { Camera, useCameraDevice } from 'react-native-vision-camera';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import { CameraView, Camera } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 
 export default function App() {
-  const [hasPermission, setHasPermission] = useState(false);
-  const [isActive, setIsActive] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState(null);
+  const [hasAudioPermission, setHasAudioPermission] = useState(null);
+  const [hasGalleryPermission, setHasGalleryPermission] = useState(null);
+
+  const [facing, setFacing] = useState('back'); 
   const [flash, setFlash] = useState('off');
-  const [exposure, setExposure] = useState(0);
+  const [videoQuality, setVideoQuality] = useState('1080p');
+  const [isRecording, setIsRecording] = useState(false);
   
   const cameraRef = useRef(null);
-  const device = useCameraDevice('back'); // Active back camera
 
+  // Dynamic Strict Permission Request
   useEffect(() => {
     (async () => {
-      const cameraStatus = await Camera.requestCameraPermission();
-      const microphoneStatus = await Camera.requestMicrophonePermission();
+      const cameraStatus = await Camera.requestCameraPermissionsAsync();
+      setHasCameraPermission(cameraStatus.status === 'granted');
+
+      const audioStatus = await Camera.requestMicrophonePermissionsAsync();
+      setHasAudioPermission(audioStatus.status === 'granted');
+
       const galleryStatus = await MediaLibrary.requestPermissionsAsync();
-      
-      setHasPermission(
-        cameraStatus === 'granted' && 
-        microphoneStatus === 'granted' && 
-        galleryStatus.status === 'granted'
-      );
+      setHasGalleryPermission(galleryStatus.status === 'granted');
     })();
   }, []);
 
-  if (!hasPermission) {
-    return <View style={styles.container}><Text style={styles.text}>Permissions Loading or Denied...</Text></View>;
+  if (hasCameraPermission === null || hasAudioPermission === null || hasGalleryPermission === null) {
+    return <View style={styles.container}><Text style={styles.text}>Permissions Load Ho Rhi Hain Bhai...</Text></View>;
   }
 
-  if (!device) {
-    return <View style={styles.container}><Text style={styles.text}>Camera Device Nahi Mila Bhai!</Text></View>;
+  if (!hasCameraPermission || !hasAudioPermission || !hasGalleryPermission) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>App chalane ke liye Settings me jaakar Camera, Mic aur Gallery ki permission on karein.</Text>
+      </View>
+    );
   }
 
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
-        const photo = await cameraRef.current.takePhoto({
-          flash: flash,
-          enableShutterSound: true
-        });
-        await MediaLibrary.saveToLibraryAsync(photo.path);
-        alert('Photo Gallery me save ho gayi! 📸');
+        const photo = await cameraRef.current.takePictureAsync({ quality: 1.0 });
+        if (photo && photo.uri) {
+          await MediaLibrary.saveToLibraryAsync(photo.uri);
+          alert('Photo Gallery me save ho gayi! 📸');
+        }
       } catch (error) {
         alert('Photo Error: ' + error.message);
       }
     }
   };
 
+  const handleVideoRecording = async () => {
+    if (cameraRef.current) {
+      if (isRecording) {
+        try {
+          await cameraRef.current.stopRecording();
+          setIsRecording(false);
+        } catch (e) {
+          console.log(e);
+        }
+      } else {
+        try {
+          setIsRecording(true);
+          let qualitySetting = '1080p';
+          if (videoQuality === '2160p') qualitySetting = '2160p'; // 4K Hardware Map
+          if (videoQuality === '720p') qualitySetting = '720p';
+
+          const video = await cameraRef.current.recordAsync({ quality: qualitySetting });
+          if (video && video.uri) {
+            await MediaLibrary.saveToLibraryAsync(video.uri);
+            alert('Video Gallery me save ho gayi! 🎥');
+          }
+        } catch (error) {
+          setIsRecording(false);
+          alert('Video Error: ' + error.message);
+        }
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Camera
+      <CameraView 
+        style={styles.camera} 
+        facing={facing}
+        flash={flash}
+        mode={isRecording ? 'video' : 'picture'}
         ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={isActive}
-        photo={true}
-        video={true}
-        exposure={exposure}
-      />
+      >
+        {/* Top Controls Bar */}
+        <View style={styles.topBar}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity style={styles.subButton} onPress={() => setVideoQuality(videoQuality === '1080p' ? '2160p' : videoQuality === '2160p' ? '720p' : '1080p')}>
+              <Text style={styles.subButtonText}>RES: {videoQuality === '2160p' ? '4K' : videoQuality}</Text>
+            </TouchableOpacity>
 
-      {/* Overlays and Controls */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.subButton} onPress={() => setFlash(flash === 'off' ? 'on' : 'off')}>
-          <Text style={styles.subButtonText}>FLASH: {flash.toUpperCase()}</Text>
-        </TouchableOpacity>
-        <Text style={styles.subButtonText}>MODE: 4K/1080p AUTO</Text>
-      </View>
+            <TouchableOpacity style={styles.subButton} onPress={() => setFlash(flash === 'off' ? 'on' : 'off')}>
+              <Text style={styles.subButtonText}>FLASH: {flash.toUpperCase()}</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
 
-      {/* Exposure Slider */}
-      <View style={styles.sliderContainer}>
-        <Text style={styles.sliderText}>EV</Text>
-        <Slider
-          style={{ width: 130, height: 40 }}
-          minimumValue={-2}
-          maximumValue={2}
-          minimumTrackTintColor="#FFFFFF"
-          maximumTrackTintColor="#555555"
-          value={exposure}
-          onValueChange={(val) => setExposure(val)}
-        />
-      </View>
+        {/* Bottom Actions Bar */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.sideButton} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}>
+            <Text style={styles.buttonText}>🔄</Text>
+          </TouchableOpacity>
 
-      {/* Bottom Bar */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-          <View style={styles.innerCaptureButton} />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
+            <View style={styles.innerCaptureButton} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.sideButton, isRecording && { backgroundColor: 'red' }]} onPress={handleVideoRecording}>
+            <Text style={styles.buttonText}>{isRecording ? '⏹️' : '📹'}</Text>
+          </TouchableOpacity>
+        </View>
+      </CameraView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  text: { color: '#fff', fontSize: 16, textAlign: 'center', marginTop: 100 },
-  topBar: { position: 'absolute', top: 50, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 8 },
-  subButton: { backgroundColor: '#333', padding: 5, borderRadius: 5 },
+  container: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  camera: { flex: 1, width: '100%', justifyContent: 'space-between' },
+  text: { color: '#fff', fontSize: 16, textAlign: 'center', padding: 20 },
+  topBar: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)', paddingTop: 50, paddingBottom: 10, paddingHorizontal: 10 },
+  subButton: { backgroundColor: '#333', padding: 8, borderRadius: 5, marginRight: 10 },
   subButtonText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  sliderContainer: { position: 'absolute', right: -35, top: '45%', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 5, borderRadius: 20, transform: [{ rotate: '-90deg' }] },
-  sliderText: { color: '#fff', fontWeight: 'bold', transform: [{ rotate: '90deg' }], marginBottom: 5 },
-  bottomBar: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
+  bottomBar: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: 40, paddingTop: 20 },
+  sideButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' },
+  buttonText: { fontSize: 22 },
   captureButton: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   innerCaptureButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' }
 });
+    
