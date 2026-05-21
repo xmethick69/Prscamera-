@@ -1,32 +1,43 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Slider, ScrollView } from 'react-native';
-import { Camera } from 'expo-camera';
+import { Camera, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 
 export default function App() {
-  const [hasPermission, setHasPermission] = useState(null);
-  const [cameraType, setCameraType] = useState(Camera.Constants.Type.back);
-  const [flashMode, setFlashMode] = useState(Camera.Constants.FlashMode.off);
-  const [exposure, setExposure] = useState(0); // Exposure Setting
-  const [whiteBalance, setWhiteBalance] = useState('auto'); // Temperature Setting
-  const [videoQuality, setVideoQuality] = useState('1080p'); // 4K, 1080p, 720p
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
+  const [mediaLibraryPermission, setMediaLibraryPermission] = useState(null);
+
+  const [cameraType, setCameraType] = useState(Camera.Constants?.Type?.back || 0);
+  const [flashMode, setFlashMode] = useState(Camera.Constants?.FlashMode?.off || 0);
+  const [exposure, setExposure] = useState(0);
+  const [whiteBalance, setWhiteBalance] = useState('auto');
+  const [videoQuality, setVideoQuality] = useState('1080p');
   const [isRecording, setIsRecording] = useState(false);
   
   const cameraRef = useRef(null);
 
   useEffect(() => {
     (async () => {
-      const cameraStatus = await Camera.requestCameraPermissionsAsync();
-      const audioStatus = await Camera.requestMicrophonePermissionsAsync();
+      await requestCameraPermission();
+      await requestMicrophonePermission();
       const mediaStatus = await MediaLibrary.requestPermissionsAsync();
-      setHasPermission(cameraStatus.status === 'granted' && audioStatus.status === 'granted');
+      setMediaLibraryPermission(mediaStatus.status === 'granted');
     })();
   }, []);
 
-  if (hasPermission === null) return <View style={styles.container}><Text style={styles.text}>Requesting Permissions...</Text></View>;
-  if (hasPermission === false) return <View style={styles.container}><Text style={styles.text}>No access to camera</Text></View>;
+  if (!cameraPermission || !microphonePermission || mediaLibraryPermission === null) {
+    return <View style={styles.container}><Text style={styles.text}>Loading Permissions...</Text></View>;
+  }
 
-  // Perfect Photo Capture Function (Fixes Black Screen)
+  if (!cameraPermission.granted || !microphonePermission.granted || !mediaLibraryPermission) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>App needs Camera, Audio & Gallery permissions to work.</Text>
+      </View>
+    );
+  }
+
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
@@ -40,7 +51,6 @@ export default function App() {
     }
   };
 
-  // Video Recording Function with Custom Quality
   const handleVideoRecording = async () => {
     if (cameraRef.current) {
       if (isRecording) {
@@ -49,9 +59,9 @@ export default function App() {
       } else {
         try {
           setIsRecording(true);
-          let qualityOption = Camera.Constants.VideoQuality['1080p'];
-          if (videoQuality === '2160p') qualityOption = Camera.Constants.VideoQuality['2160p']; // 4K
-          if (videoQuality === '720p') qualityOption = Camera.Constants.VideoQuality['720p'];
+          let qualityOption = Camera.Constants?.VideoQuality?.['1080p'] || 0;
+          if (videoQuality === '2160p' && Camera.Constants?.VideoQuality?.['2160p']) qualityOption = Camera.Constants.VideoQuality['2160p'];
+          if (videoQuality === '720p' && Camera.Constants?.VideoQuality?.['720p']) qualityOption = Camera.Constants.VideoQuality['720p'];
 
           const videoOptions = { quality: qualityOption };
           const video = await cameraRef.current.recordAsync(videoOptions);
@@ -75,27 +85,22 @@ export default function App() {
         whiteBalance={whiteBalance}
         ref={cameraRef}
       >
-        {/* Top Controls Bar */}
         <View style={styles.topBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {/* Resolution Toggle */}
             <TouchableOpacity style={styles.subButton} onPress={() => setVideoQuality(videoQuality === '1080p' ? '2160p' : videoQuality === '2160p' ? '720p' : '1080p')}>
               <Text style={styles.subButtonText}>RES: {videoQuality === '2160p' ? '4K' : videoQuality}</Text>
             </TouchableOpacity>
 
-            {/* WB / Temperature Toggle */}
             <TouchableOpacity style={styles.subButton} onPress={() => setWhiteBalance(whiteBalance === 'auto' ? 'sunny' : whiteBalance === 'sunny' ? 'cloudy' : 'auto')}>
               <Text style={styles.subButtonText}>WB: {whiteBalance.toUpperCase()}</Text>
             </TouchableOpacity>
 
-            {/* Flash Toggle */}
-            <TouchableOpacity style={styles.subButton} onPress={() => setFlashMode(flashMode === Camera.Constants.FlashMode.off ? Camera.Constants.FlashMode.on : Camera.Constants.FlashMode.off)}>
-              <Text style={styles.subButtonText}>FLASH: {flashMode === Camera.Constants.FlashMode.on ? 'ON' : 'OFF'}</Text>
+            <TouchableOpacity style={styles.subButton} onPress={() => setFlashMode(flashMode === 0 ? 1 : 0)}>
+              <Text style={styles.subButtonText}>FLASH: {flashMode === 1 ? 'ON' : 'OFF'}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
-        {/* Exposure Slider Center Right */}
         <View style={styles.sliderContainer}>
           <Text style={styles.sliderText}>EV</Text>
           <Slider
@@ -109,9 +114,8 @@ export default function App() {
           />
         </View>
 
-        {/* Bottom Action Buttons */}
         <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.sideButton} onPress={() => setCameraType(cameraType === Camera.Constants.Type.back ? Camera.Constants.Type.front : Camera.Constants.Type.back)}>
+          <TouchableOpacity style={styles.sideButton} onPress={() => setCameraType(cameraType === 0 ? 1 : 0)}>
             <Text style={styles.buttonText}>🔄</Text>
           </TouchableOpacity>
 
@@ -129,18 +133,18 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1, justifyContent: 'space-between' },
-  text: { color: '#fff', fontSize: 18, textAlign: 'center', marginTop: '50%' },
-  topBar: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10 },
+  container: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  camera: { flex: 1, width: '100%', justifyContent: 'space-between' },
+  text: { color: '#fff', fontSize: 16, textAlign: 'center', padding: 20 },
+  topBar: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)', paddingTop: 50, paddingBottom: 10, paddingHorizontal: 10 },
   subButton: { backgroundColor: '#333', padding: 8, borderRadius: 5, marginRight: 10 },
   subButtonText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  sliderContainer: { position: 'absolute', right: 10, top: '40%', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20, transform: [{ rotate: '-90deg' }] },
-  sliderText: { color: '#fff', fontWeight: 'bold', marginBottom: 5 },
-  bottomBar: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: 30, paddingTop: 20 },
+  sliderContainer: { position: 'absolute', right: -40, top: '45%', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20, transform: [{ rotate: '-90deg' }] },
+  sliderText: { color: '#fff', fontWeight: 'bold', marginBottom: 5, transform: [{ rotate: '90deg' }] },
+  bottomBar: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingBottom: 40, paddingTop: 20 },
   sideButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' },
   buttonText: { fontSize: 22 },
   captureButton: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   innerCaptureButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' }
 });
-          
+  
