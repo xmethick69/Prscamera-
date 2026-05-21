@@ -8,8 +8,9 @@ export default function App() {
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState(null);
 
-  const [cameraType, setCameraType] = useState(Camera.Constants?.Type?.back || 0);
-  const [flashMode, setFlashMode] = useState(Camera.Constants?.FlashMode?.off || 0);
+  // Expo 51 safe constants (Using direct strings instead of Camera.Constants)
+  const [facing, setFacing] = useState('back'); 
+  const [flash, setFlash] = useState('off');
   const [exposure, setExposure] = useState(0);
   const [whiteBalance, setWhiteBalance] = useState('auto');
   const [videoQuality, setVideoQuality] = useState('1080p');
@@ -27,13 +28,13 @@ export default function App() {
   }, []);
 
   if (!cameraPermission || !microphonePermission || mediaLibraryPermission === null) {
-    return <View style={styles.container}><Text style={styles.text}>Loading Permissions...</Text></View>;
+    return <View style={styles.container}><Text style={styles.text}>Permissions Loading...</Text></View>;
   }
 
   if (!cameraPermission.granted || !microphonePermission.granted || !mediaLibraryPermission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>App needs Camera, Audio & Gallery permissions to work.</Text>
+        <Text style={styles.text}>App ko chalne ke liye Camera, Audio aur Gallery ki permission chahiye.</Text>
       </View>
     );
   }
@@ -44,9 +45,9 @@ export default function App() {
         const options = { quality: 1.0, skipProcessing: false, exif: true };
         const photo = await cameraRef.current.takePictureAsync(options);
         await MediaLibrary.saveToLibraryAsync(photo.uri);
-        alert('Photo Saved to Gallery! 📸');
+        alert('Photo Gallery me save ho gayi! 📸');
       } catch (error) {
-        alert('Capture Error: ' + error.message);
+        alert('Photo Error: ' + error.message);
       }
     }
   };
@@ -59,14 +60,15 @@ export default function App() {
       } else {
         try {
           setIsRecording(true);
-          let qualityOption = Camera.Constants?.VideoQuality?.['1080p'] || 0;
-          if (videoQuality === '2160p' && Camera.Constants?.VideoQuality?.['2160p']) qualityOption = Camera.Constants.VideoQuality['2160p'];
-          if (videoQuality === '720p' && Camera.Constants?.VideoQuality?.['720p']) qualityOption = Camera.Constants.VideoQuality['720p'];
+          // Expo 51 safe video quality mapping
+          let qualityOption = '1080p';
+          if (videoQuality === '2160p') qualityOption = '2160p';
+          if (videoQuality === '720p') qualityOption = '720p';
 
           const videoOptions = { quality: qualityOption };
           const video = await cameraRef.current.recordAsync(videoOptions);
           await MediaLibrary.saveToLibraryAsync(video.uri);
-          alert('Video Saved to Gallery! 🎥');
+          alert('Video Gallery me save ho gayi! 🎥');
         } catch (error) {
           setIsRecording(false);
           alert('Video Error: ' + error.message);
@@ -79,12 +81,13 @@ export default function App() {
     <View style={styles.container}>
       <Camera 
         style={styles.camera} 
-        type={cameraType}
-        flashMode={flashMode}
+        facing={facing}
+        flash={flash}
         exposure={exposure}
         whiteBalance={whiteBalance}
         ref={cameraRef}
       >
+        {/* Top Controls Bar */}
         <View style={styles.topBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity style={styles.subButton} onPress={() => setVideoQuality(videoQuality === '1080p' ? '2160p' : videoQuality === '2160p' ? '720p' : '1080p')}>
@@ -95,12 +98,13 @@ export default function App() {
               <Text style={styles.subButtonText}>WB: {whiteBalance.toUpperCase()}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.subButton} onPress={() => setFlashMode(flashMode === 0 ? 1 : 0)}>
-              <Text style={styles.subButtonText}>FLASH: {flashMode === 1 ? 'ON' : 'OFF'}</Text>
+            <TouchableOpacity style={styles.subButton} onPress={() => setFlash(flash === 'off' ? 'on' : 'off')}>
+              <Text style={styles.subButtonText}>FLASH: {flash.toUpperCase()}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
+        {/* Exposure Slider (Vertical Look) */}
         <View style={styles.sliderContainer}>
           <Text style={styles.sliderText}>EV</Text>
           <Slider
@@ -108,14 +112,15 @@ export default function App() {
             minimumValue={-1}
             maximumValue={1}
             minimumTrackTintColor="#FFFFFF"
-            maximumTrackTintColor="#000000"
+            maximumTrackTintColor="#555555"
             value={exposure}
             onValueChange={(val) => setExposure(val)}
           />
         </View>
 
+        {/* Bottom Actions Bar */}
         <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.sideButton} onPress={() => setCameraType(cameraType === 0 ? 1 : 0)}>
+          <TouchableOpacity style={styles.sideButton} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}>
             <Text style={styles.buttonText}>🔄</Text>
           </TouchableOpacity>
 
@@ -147,4 +152,4 @@ const styles = StyleSheet.create({
   captureButton: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   innerCaptureButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' }
 });
-          
+      
