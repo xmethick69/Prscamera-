@@ -1,22 +1,46 @@
 {
-  "name": "prscamera",
-  "version": "1.0.0",
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "dependencies": {
-    "expo": "~51.0.0",
-    "expo-status-bar": "~1.12.1",
-    "react": "18.2.0",
-    "react-native": "0.74.1",
-    "react-native-vision-camera": "4.0.1",
-    "expo-media-library": "~16.0.4"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.20.0"
-  },
-  "private": true
+  "expo": {
+    "name": "prscamera",
+    "slug": "prscamera-",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111111"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.prs.prscamera"
+    },
+    "android": {
+      "package": "com.prs.prscamera",
+      "adaptiveIcon": {
+        "backgroundColor": "#111111"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "App ko photo khinchne ke liye camera ki zaroorat hai.",
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "App ko video record karne ke liye mic ki zaroorat hai."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4fc05a58-0b31-442c-81c7-e06e9ecf886d"
+      }
+    }
+  }
 }
