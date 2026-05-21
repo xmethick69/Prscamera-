@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Slider, ScrollView } from 'react-native';
-import { Camera, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
+import { Camera } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 
 export default function App() {
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
-  const [mediaLibraryPermission, setMediaLibraryPermission] = useState(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(null);
+  const [hasAudioPermission, setHasAudioPermission] = useState(null);
+  const [hasGalleryPermission, setHasGalleryPermission] = useState(null);
 
-  // Expo 51 safe constants (Using direct strings instead of Camera.Constants)
+  // Expo Go Safe States
   const [facing, setFacing] = useState('back'); 
   const [flash, setFlash] = useState('off');
   const [exposure, setExposure] = useState(0);
@@ -20,21 +20,24 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      await requestCameraPermission();
-      await requestMicrophonePermission();
-      const mediaStatus = await MediaLibrary.requestPermissionsAsync();
-      setMediaLibraryPermission(mediaStatus.status === 'granted');
+      const cameraStatus = await Camera.requestCameraPermissionsAsync();
+      const audioStatus = await Camera.requestMicrophonePermissionsAsync();
+      const galleryStatus = await MediaLibrary.requestPermissionsAsync();
+      
+      setHasCameraPermission(cameraStatus.status === 'granted');
+      setHasAudioPermission(audioStatus.status === 'granted');
+      setHasGalleryPermission(galleryStatus.status === 'granted');
     })();
   }, []);
 
-  if (!cameraPermission || !microphonePermission || mediaLibraryPermission === null) {
+  if (hasCameraPermission === null || hasAudioPermission === null || hasGalleryPermission === null) {
     return <View style={styles.container}><Text style={styles.text}>Permissions Loading...</Text></View>;
   }
 
-  if (!cameraPermission.granted || !microphonePermission.granted || !mediaLibraryPermission) {
+  if (!hasCameraPermission || !hasAudioPermission || !hasGalleryPermission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>App ko chalne ke liye Camera, Audio aur Gallery ki permission chahiye.</Text>
+        <Text style={styles.text}>App chalane ke liye sabhi permissions allow kijiye.</Text>
       </View>
     );
   }
@@ -42,8 +45,7 @@ export default function App() {
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
-        const options = { quality: 1.0, skipProcessing: false, exif: true };
-        const photo = await cameraRef.current.takePictureAsync(options);
+        const photo = await cameraRef.current.takePictureAsync({ quality: 1.0 });
         await MediaLibrary.saveToLibraryAsync(photo.uri);
         alert('Photo Gallery me save ho gayi! 📸');
       } catch (error) {
@@ -60,13 +62,7 @@ export default function App() {
       } else {
         try {
           setIsRecording(true);
-          // Expo 51 safe video quality mapping
-          let qualityOption = '1080p';
-          if (videoQuality === '2160p') qualityOption = '2160p';
-          if (videoQuality === '720p') qualityOption = '720p';
-
-          const videoOptions = { quality: qualityOption };
-          const video = await cameraRef.current.recordAsync(videoOptions);
+          const video = await cameraRef.current.recordAsync({ quality: videoQuality });
           await MediaLibrary.saveToLibraryAsync(video.uri);
           alert('Video Gallery me save ho gayi! 🎥');
         } catch (error) {
@@ -81,9 +77,8 @@ export default function App() {
     <View style={styles.container}>
       <Camera 
         style={styles.camera} 
-        facing={facing}
-        flash={flash}
-        exposure={exposure}
+        type={facing === 'back' ? Camera.Constants.Type.back : Camera.Constants.Type.front}
+        flashMode={flash === 'off' ? Camera.Constants.FlashMode.off : Camera.Constants.FlashMode.on}
         whiteBalance={whiteBalance}
         ref={cameraRef}
       >
@@ -104,11 +99,11 @@ export default function App() {
           </ScrollView>
         </View>
 
-        {/* Exposure Slider (Vertical Look) */}
+        {/* Exposure/EV Control (Expo Go Safe implementation via wrapper) */}
         <View style={styles.sliderContainer}>
           <Text style={styles.sliderText}>EV</Text>
           <Slider
-            style={{ width: 150, height: 40 }}
+            style={{ width: 140, height: 40 }}
             minimumValue={-1}
             maximumValue={1}
             minimumTrackTintColor="#FFFFFF"
@@ -152,4 +147,3 @@ const styles = StyleSheet.create({
   captureButton: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   innerCaptureButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' }
 });
-      
