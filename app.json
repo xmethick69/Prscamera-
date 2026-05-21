@@ -27,16 +27,6 @@
         "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
-    "plugins": [
-      [
-        "react-native-vision-camera",
-        {
-          "cameraPermissionText": "App ko photo khinchne ke liye camera ki zaroorat hai.",
-          "enableMicrophonePermission": true,
-          "microphonePermissionText": "App ko video record karne ke liye mic ki zaroorat hai."
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "4fc05a58-0b31-442c-81c7-e06e9ecf886d"
