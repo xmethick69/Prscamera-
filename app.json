@@ -12,7 +12,8 @@
       "backgroundColor": "#111111"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.prs.prscamera"
     },
     "android": {
       "package": "com.prs.prscamera",
@@ -21,13 +22,14 @@
       },
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
     "extra": {
       "eas": {
-        "projectId": "6d3a9801-a03e-4b0a-b4ce-0bcf7817129d"
+        "projectId": "6d3a9801-a03e-4b0a-b4ce-0"
       }
     }
   }
