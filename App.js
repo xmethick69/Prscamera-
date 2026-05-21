@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Slider, ScrollView } from 'react-native';
-import { Camera } from 'expo-camera';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 
 export default function App() {
-  const [hasCameraPermission, setHasCameraPermission] = useState(null);
-  const [hasAudioPermission, setHasAudioPermission] = useState(null);
-  const [hasGalleryPermission, setHasGalleryPermission] = useState(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
+  const [galleryPermission, setGalleryPermission] = useState(null);
 
-  // Expo Go Safe States
+  // Expo 51 Strict CameraView States
   const [facing, setFacing] = useState('back'); 
   const [flash, setFlash] = useState('off');
-  const [exposure, setExposure] = useState(0);
+  const [exposure, setExposure] = useState(0); // Range: -1 to 1
   const [whiteBalance, setWhiteBalance] = useState('auto');
   const [videoQuality, setVideoQuality] = useState('1080p');
   const [isRecording, setIsRecording] = useState(false);
@@ -20,24 +20,21 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const cameraStatus = await Camera.requestCameraPermissionsAsync();
-      const audioStatus = await Camera.requestMicrophonePermissionsAsync();
+      await requestCameraPermission();
+      await requestMicrophonePermission();
       const galleryStatus = await MediaLibrary.requestPermissionsAsync();
-      
-      setHasCameraPermission(cameraStatus.status === 'granted');
-      setHasAudioPermission(audioStatus.status === 'granted');
-      setHasGalleryPermission(galleryStatus.status === 'granted');
+      setGalleryPermission(galleryStatus.status === 'granted');
     })();
   }, []);
 
-  if (hasCameraPermission === null || hasAudioPermission === null || hasGalleryPermission === null) {
+  if (!cameraPermission || !microphonePermission || galleryPermission === null) {
     return <View style={styles.container}><Text style={styles.text}>Permissions Loading...</Text></View>;
   }
 
-  if (!hasCameraPermission || !hasAudioPermission || !hasGalleryPermission) {
+  if (!cameraPermission.granted || !microphonePermission.granted || !galleryPermission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>App chalane ke liye sabhi permissions allow kijiye.</Text>
+        <Text style={styles.text}>App chalane ke liye Camera, Microphone aur Gallery permissions zaroori hain.</Text>
       </View>
     );
   }
@@ -57,14 +54,29 @@ export default function App() {
   const handleVideoRecording = async () => {
     if (cameraRef.current) {
       if (isRecording) {
-        cameraRef.current.stopRecording();
-        setIsRecording(false);
+        try {
+          await cameraRef.current.stopRecording();
+          setIsRecording(false);
+        } catch (e) {
+          console.log(e);
+        }
       } else {
         try {
           setIsRecording(true);
-          const video = await cameraRef.current.recordAsync({ quality: videoQuality });
-          await MediaLibrary.saveToLibraryAsync(video.uri);
-          alert('Video Gallery me save ho gayi! 🎥');
+          // Mapping quality for Expo 51 CameraView
+          let qualitySetting = '1080p';
+          if (videoQuality === '2160p') qualitySetting = '2160p'; // 4K hardware map
+          if (videoQuality === '720p') qualitySetting = '720p';
+
+          const video = await cameraRef.current.recordAsync({
+            maxDuration: 60,
+            quality: qualitySetting
+          });
+          
+          if (video && video.uri) {
+            await MediaLibrary.saveToLibraryAsync(video.uri);
+            alert('Video Gallery me save ho gayi! 🎥');
+          }
         } catch (error) {
           setIsRecording(false);
           alert('Video Error: ' + error.message);
@@ -75,11 +87,11 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Camera 
+      <CameraView 
         style={styles.camera} 
-        type={facing === 'back' ? Camera.Constants.Type.back : Camera.Constants.Type.front}
-        flashMode={flash === 'off' ? Camera.Constants.FlashMode.off : Camera.Constants.FlashMode.on}
-        whiteBalance={whiteBalance}
+        facing={facing}
+        flash={flash}
+        mode={isRecording ? 'video' : 'picture'}
         ref={cameraRef}
       >
         {/* Top Controls Bar */}
@@ -99,7 +111,7 @@ export default function App() {
           </ScrollView>
         </View>
 
-        {/* Exposure/EV Control (Expo Go Safe implementation via wrapper) */}
+        {/* Exposure/EV Slider Container */}
         <View style={styles.sliderContainer}>
           <Text style={styles.sliderText}>EV</Text>
           <Slider
@@ -127,7 +139,7 @@ export default function App() {
             <Text style={styles.buttonText}>{isRecording ? '⏹️' : '📹'}</Text>
           </TouchableOpacity>
         </View>
-      </Camera>
+      </CameraView>
     </View>
   );
 }
@@ -147,3 +159,4 @@ const styles = StyleSheet.create({
   captureButton: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   innerCaptureButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' }
 });
+          
