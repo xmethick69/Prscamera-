@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "extra": {
-      "eas": {
-        "projectId": "94bd979e-dbb7-451b-a553-6c64ed4a53b7"
-      }
-    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
